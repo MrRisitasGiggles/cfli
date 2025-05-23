@@ -176,5 +176,5 @@ cython_debug/
 .pypirc
 
 # Random images.
-img/*.png
-img/*.jpg
+.img/*.png
+.img/*.jpg
