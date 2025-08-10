@@ -55,7 +55,11 @@ cover/
 *.xlsm
 *.xlsx
 *.log
+*.xls
+*.xlsm
+*.xlsx
 *.png
+*.log
 
 # Translations
 *.mo
@@ -182,3 +186,4 @@ cython_debug/
 # Random images.
 .img/*.png
 .img/*.jpg
+./src/main_20250810_08h59.py

@@ -33,7 +33,7 @@ def trf(x: float, l: float) -> float:
             y = x
             print(f"\nWARNING: {__name__}: trf(x,l) -> Wrong types passed "\
                     + f"for x -> {x} and lambda -> {l}.")
-    except Exception as _xcptn:
+    except ValueError as _xcptn:
         print(f"\nERROR: {__name__}: trf(x,l) -> {_xcptn}")
         y = x
     finally:
@@ -70,7 +70,7 @@ def invtrf(y: float, l: float) -> float:
             x = y
             print(f"\nWARNING: {__name__}: invtrf(y,l) -> Wrong types passed "\
                     + f"for x -> {x} and lambda -> {l}.")
-    except Exception as _xcptn:
+    except ValueError as _xcptn:
         print(f"\nERROR: {__name__}: invtrf(y,l) -> {_xcptn}")
         x = y
     finally:
@@ -212,8 +212,6 @@ class Test_yftrf(unittest.TestCase):
     def test_normal(self):
         """Function to test transformation of the log-normal distribution."""
 
-        import numpy as np
-        import pandas as pd
         print("\n")
         print("=" * 70)
         print(" " * 25 + " Normal distribution " + " " * 25)
@@ -244,8 +242,6 @@ class Test_yftrf(unittest.TestCase):
     def test_lognormal(self):
         """Function to test transformation of the log-normal distribution."""
 
-        import numpy as np
-        import pandas as pd
         print("\n")
         print("=" * 70)
         print(" " * 23 + " Lognormal distribution " + " " * 23)
@@ -253,7 +249,7 @@ class Test_yftrf(unittest.TestCase):
         n: int = 1001
         N: int = 500
         _lambda: float = 0.0
-        for _tests in range(0, N): 
+        for _tests in range(0, N):
             x: list[float] = np.random.normal(loc=0.0, scale=1.0, size=n)
             s: list[float] = [math.exp(x[0])]
             for _ in range(1, n):
@@ -277,8 +273,6 @@ class Test_yftrf(unittest.TestCase):
     def test_neglognormal(self):
         """Function to test transformation of the log-normal distribution."""
 
-        import numpy as np
-        import pandas as pd
         print("\n")
         print("=" * 70)
         print(" " * 20 + " Negative Lognormal distribution " + " " * 20)
@@ -309,4 +303,3 @@ class Test_yftrf(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
