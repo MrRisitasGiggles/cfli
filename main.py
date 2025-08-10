@@ -1,152 +1,191 @@
+""" No dosctring?! """
+import math
+import datetime
+
 import pandas as pd
 import numpy as np
-from datetime import datetime
-from os.path import join
+import pmdarima as pm
 import matplotlib.pyplot  as plt
-from scipy.stats import norm as norm
-import statsmodels.api as sm
-import src.yjtrf as yjtrf
 
-root_dir: str = r"C:\Users\werhn\OneDrive\Documents\Python\cfli\cache"
-img_dir: str = r"C:\Users\werhn\OneDrive\Documents\Python\cfli\img"
+from src import yjtrf
 
-csv_file: str = "CPIAUCSL.csv"
-cpi: pd.DataFrame = pd.read_csv(join(root_dir, csv_file))
-cpi['DATEX'] = cpi['observation_date']\
-    .apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
-cpi.drop(columns=["observation_date"], inplace=True)
-cpi.set_index(keys="DATEX", inplace=True)
-cpi = cpi / cpi.shift(periods=12) - 1
-cpi_mu, cpi_sd = cpi["CPIAUCSL"].mean(skipna=True),\
-        cpi["CPIAUCSL"].std(skipna=True)
-cpi["CPIAUCSL"] = cpi["CPIAUCSL"].apply(lambda z: (z-cpi_mu)/cpi_sd)
-cpi_l: float = yjtrf.soek(s=pd.Series(data=cpi["CPIAUCSL"],
-                                      index=cpi.index, name="CPIAUCSL"))
-print(f"\nCPI: Yeo-Johnson transform is: {cpi_l:>5.2}")
-cpi["CPIAUCSL"] = cpi["CPIAUCSL"].apply(lambda z: yjtrf.trf(x=z, l=cpi_l))
+START_DATE=datetime.datetime.strptime("2000-01-31","%Y-%m-%d").date()
+FINAL_DATE=datetime.datetime.today().date() + pd.offsets.MonthEnd(0)
 
-csv_file: str = "GDPC1.csv"
-gdp: pd.DataFrame = pd.read_csv(join(root_dir, csv_file))
-gdp['DATEX'] = gdp['observation_date']\
-    .apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
-gdp.drop(columns=["observation_date"], inplace=True)
-gdp.set_index(keys="DATEX", inplace=True)
-gdp = gdp / gdp.shift(periods=12) - 1
-gdp_mu, gdp_sd = gdp["GDPC1"].mean(skipna=True), gdp["GDPC1"].std(skipna=True)
-gdp["GDPC1"] = gdp["GDPC1"].apply(lambda z: (z-gdp_mu)/gdp_sd)
-gdp_l: float = yjtrf.soek(s=pd.Series(data=gdp["GDPC1"],
-                                      index=gdp.index, name="GDPC1"))
-print(f"\nGDP: Yeo-Johnson transform is : {gdp_l:>5.2}")
-gdp["GDPC1"] = gdp["GDPC1"].apply(lambda z: yjtrf.trf(x=z, l=gdp_l))
+root_dir: str = "./cache"
+img_dir: str = "./img"
+csv_files: list[str] = ["CPIAUCSL.csv","GDPC1.csv",
+                        "T10Y3M.csv","UNRATE.csv"]
 
-csv_file: str = "T10Y3M.csv"
-rate: pd.DataFrame = pd.read_csv(join(root_dir, csv_file))
-rate['DATEX'] = rate['observation_date']\
-    .apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
-rate.drop(columns=["observation_date"], inplace=True)
-rate.set_index(keys="DATEX", inplace=True)
-rate = rate / 100.0
-rate_mu, rate_sd = rate["T10Y3M"].mean(skipna=True),\
-        rate["T10Y3M"].std(skipna=True)
-rate["T10Y3M"] = rate["T10Y3M"].apply(lambda z: (z-rate_mu)/rate_sd)
-rate_l: float = yjtrf.soek(s=pd.Series(data=rate["T10Y3M"],
-                                      index=gdp.index, name="T10Y3M"))
-print(f"\nRate: Yeo-Johnson transform is : {rate_l:>5.2}")
-rate["T10Y3M"] = rate["T10Y3M"].apply(lambda z: yjtrf.trf(x=z, l=rate_l))
+def import_file(csv_file: str) -> pd.DataFrame:
+    """ No docstring?! """
+    _name: str = csv_file.strip().split(".", maxsplit=1)[0].upper()
+    locals()[_name]: pd.DataFrame = pd.read_csv(csv_file)
+    locals()[_name]['DATEX'] = locals()[_name]['observation_date']\
+                                    .apply(lambda x: pd.offsets.MonthEnd(0)+\
+                                    datetime.datetime\
+                                        .strptime(x, "%Y-%m-%d"))
+    locals()[_name].drop(columns=["observation_date"], inplace=True)
+    locals()[_name] = locals()[_name]\
+        .groupby(by=["DATEX"], as_index=True).median().reset_index()
+    locals()[_name].set_index(keys="DATEX", inplace=True)
+    print(f"\n{_name}\n{locals()[_name].describe()}\n")
+    return locals()[_name]
 
-csv_file: str = "UNRATE.csv"
-unrate: pd.DataFrame = pd.read_csv(join(root_dir, csv_file))
-unrate['DATEX'] = unrate['observation_date']\
-    .apply(lambda x: datetime.strptime(x, "%Y-%m-%d"))
-unrate.drop(columns=["observation_date"], inplace=True)
-unrate.set_index(keys="DATEX", inplace=True)
-unrate = unrate / 100.0
-unrate_mu, unrate_sd = unrate["UNRATE"].mean(skipna=True),\
-        unrate["UNRATE"].std(skipna=True)
-unrate["UNRATE"] = unrate["UNRATE"].apply(lambda z: (z-unrate_mu)/unrate_sd)
-unrate_l: float = yjtrf.soek(s=pd.Series(data=unrate["UNRATE"],
-                                      index=unrate.index, name="UNRATE"))
-print(f"\nUnemployment Rate: Yeo-Johnson transform is : {unrate_l:>5.2}")
-unrate["UNRATE"] = unrate["UNRATE"].apply(lambda z: yjtrf.trf(x=z, l=unrate_l))
+macrovars: list[str] = []
+for _csv_file in csv_files:
+    macrovar: str = _csv_file.strip()\
+        .split(".", maxsplit=1)[0].upper()
+    locals()[macrovar] =\
+        import_file(csv_file=f"{root_dir}/{_csv_file}")
+    macrovars.append(macrovar)
 
-# Join all variables into a single data frame.
-df: pd.DataFrame = pd.concat([cpi, gdp, rate, unrate], join="inner",
-                             axis=1,
-                             ignore_index=False)
+_0: pd.DataFrame =\
+    pd.DataFrame(index=pd.date_range(start=START_DATE, end=FINAL_DATE,
+                    freq="ME").tolist())
+for macrovar in macrovars:
+    _0 = pd.merge(left=_0, right=locals()[macrovar],
+                  how="left", validate="1:1",
+                  left_index=True, right_index=True,
+                  sort=True)
+print(f"\n_0:\n{_0.describe()}\n")
 
-df_std: pd.DataFrame = df.copy()
-for _col in df.select_dtypes("number").columns.to_list():
-    df[_col] = df[_col]\
-        .interpolate(method="linear", axis=0, inplace=False)
-    df_std[_col] = df[_col]\
-        .apply(lambda z: (z-df[_col].mean())/df[_col].std())
-    plt.hist(df_std[_col].to_numpy(), bins=21, density=True)
-    plt.savefig(join(img_dir, f"{_col} - Standardised.png"))
+_1: pd.DataFrame = _0.copy()
+for macrovar in macrovars:
+    _1[macrovar] =\
+        _1[macrovar].interpolate(method="linear", limit_area="inside")
+print(f"\n_1:\n{_1.describe()}\n")
+
+for macrovar in macrovars:
+    plt.title(label=f"Histogram of {macrovar}")
+    plt.hist(_1[macrovar].to_numpy(),
+                bins=1+int(2.33*math.log(_1.shape[0],10)),
+                    density=True)
+    plt.savefig(f"{img_dir}/{macrovar} - Actual.png")
     plt.close()
-    plt.hist(df[_col].to_numpy(), bins=21, density=True)
-    plt.savefig(join(img_dir, f"{_col} - Actual.png"))
+    plt.title(label=f"Lineplot of {macrovar}")
+    plt.plot(_1.index, _1[macrovar], label=f"{macrovar}")
+    plt.xlabel(xlabel="Date")
+    plt.ylabel(ylabel=f"{macrovar}")
+    plt.savefig(f"{img_dir}/{macrovar} - Timeseries.png")
     plt.close()
 
-# Calculate means, and standard deviations.
-mu, sd = df.select_dtypes("number").mean(),\
-    df.select_dtypes("number").std()
-print("\n")
-print(mu, sd, sep="\n\n")
+_stats: dict = {}
+for macrovar in macrovars:
+    _stats[macrovar] = {}
+    _min: float = _1[macrovar].min(skipna=True, numeric_only=True)
+    _max: float = _1[macrovar].max(skipna=True, numeric_only=True)
+    _stats[macrovar]["min"] = _min
+    _stats[macrovar]["max"] = _max
 
-# Calculate correlation matrix.
-corr_mat: pd.DataFrame = df.corr(method="spearman", numeric_only=True)
+_2: pd.DataFrame = _1.copy()
+for macrovar in macrovars:
+    _min: float = _stats[macrovar]["min"]
+    _max: float = _stats[macrovar]["max"]
+    _2[macrovar] = _2[macrovar].apply(lambda x:\
+        (x-_min)/(_max-_min) if not pd.isna(x) else math.nan)
+    _lambda: float = yjtrf.soek(s=_2[macrovar].dropna())
+    _stats[macrovar]["lambda"] = _lambda
+print(f"\n_stats:\n{_stats}\n")
+print(f"\n_2:\n{_2}\n")
 
-# Calculate Cholesky decomposition.
-evals, evecs = np.linalg.eig(corr_mat)
-for _, eval in enumerate(evals):
-    evals[_] = max(1e-4, eval)
-corr_mat_ = np.diag(evals)
-corr_mat_ = np.linalg\
-    .matmul(np.linalg.matmul(evecs, corr_mat_),
-            np.matrix_transpose(evecs))
-corr_mat_: pd.DataFrame =\
-    pd.DataFrame(data=corr_mat, index=corr_mat.index,
-                 columns=corr_mat.columns.to_flat_index())
-print("\n")
-print(corr_mat, corr_mat_, sep="\n\n")
-
-z: np.ndarray = np.random.multivariate_normal(mean=0.0*mu, cov=corr_mat_,
-                                              size=500000)
-z: pd.DataFrame = pd.DataFrame(data=z, index=None,
-                               columns=corr_mat_.columns.to_list())
-z = mu + sd * z
-z["CPIAUCSL"] = z["CPIAUCSL"].apply(lambda z: yjtrf.invtrf(y=z, l=cpi_l))
-z["CPIAUCSL"] = cpi_mu + cpi_sd * z["CPIAUCSL"]
-z["GDPC1"] = z["GDPC1"].apply(lambda z: yjtrf.invtrf(y=z, l=gdp_l))
-z["GDPC1"] = gdp_mu + gdp_sd * z["GDPC1"]
-z["T10Y3M"] = z["T10Y3M"].apply(lambda z: yjtrf.invtrf(y=z, l=rate_l))
-z["T10Y3M"] = rate_mu + rate_sd * z["T10Y3M"]
-z["UNRATE"] = z["UNRATE"].apply(lambda z: yjtrf.invtrf(y=z, l=unrate_l))
-z["UNRATE"] = unrate_mu + unrate_sd * z["UNRATE"]
-
-z.sort_values(by=["GDPC1", "UNRATE", "T10Y3M"], inplace=True,
-              ascending=[True, False, False])
-z["y"] = pd.Series(data=range(1, z.shape[0] + 1), index=z.index,
-                   name="frequency")
-z["y"] = z["y"] /(1 + z.shape[0])
-z["y"] = z["y"].apply(lambda x: norm.ppf(x))
-# print(z.corr(method="spearman"))
-
-X: np.ndarray = z[["CPIAUCSL", "GDPC1", "T10Y3M", "UNRATE"]].to_numpy()
-X = sm.add_constant(X)
-Y: np.ndarray = z["y"].to_numpy()
-model = sm.OLS(Y, X)
-results = model.fit()
-z["mc"] = 50.0 + 12.5 * pd.Series(data=results.fittedvalues,
-                                  index=z.index, name="mc")
-z.to_clipboard()
-print("\n\n")
-print(results.summary())
-
-for _col in z.columns.to_list():
-    plt.hist(z[_col].to_numpy(), bins=41, density=True)
-    plt.savefig(join(img_dir, f"{_col} - Simulation.png"))
+_3: pd.DataFrame = _2.copy()
+for macrovar in macrovars:
+    _: float = _stats[macrovar]["lambda"]
+    _3[macrovar] = _3[macrovar].apply(lambda x: yjtrf.trf(x, _)
+                        if not pd.isna(x) else math.nan)
+    _3[macrovar] = _3[macrovar].interpolate(method="linear",
+                                                limit_area="inside")
+    plt.title(label=f"Histogram of transformed {macrovar}")
+    plt.hist(_3[macrovar].dropna().to_numpy(),
+                bins=1+int(2.33*math.log(_1.shape[0],10)),
+                    density=True)
+    plt.savefig(f"{img_dir}/{macrovar} - Transformed.png")
     plt.close()
 
-print("\n")
-print(z)
+_4: pd.DataFrame = _3.copy()
+for macrovar in macrovars:
+    _mu: float = _3[macrovar].mean(skipna=True, numeric_only=True)
+    _sd: float = _3[macrovar].std(skipna=True, numeric_only=True)
+    _stats[macrovar]["mean"] = _mu
+    _stats[macrovar]["std"] = _sd
+    _4[macrovar] = _4[macrovar].apply(lambda x:\
+        (x-_mu)/_sd if not pd.isna(x) else math.nan)
+print(f"\n_4:\n{_4}\n")
+
+def quick_arima(s: pd.Series) -> pd.DataFrame:
+    """ No docstring?! """
+
+    _s: pd.Series = pd.Series(data=s, name=f"{s.name}")
+    _s.dropna(inplace=True)
+    # https://www.google.com/search?q=Python+autofit+SARIMA+with+pmdarima&sxsrf=AE3TifPuFhFg_a-8uVGgzY3afC-9_6h7Qw%3A1754817334497
+    model = pm.auto_arima(
+        _s,
+        seasonal=True,  # Set to True for SARIMA, False for ARIMA
+        m=12,           # Seasonal period (e.g., 12 for monthly data)
+        start_p=0,      # Starting order for p
+        start_q=0,      # Starting order for q
+        max_p=5,        # Maximum order for p
+        max_q=5,        # Maximum order for q
+        max_P=2,        # Maximum order for P (seasonal AR)
+        max_Q=2,        # Maximum order for Q (seasonal MA)
+        trace=True,     # Show fitting progress
+        suppress_warnings=True, # Suppress warnings
+        error_action='ignore', # Handle errors gracefully
+        stepwise=True   # Use stepwise search for efficiency
+    )
+    print(model.summary())
+    _steps: int = 72
+    t_0: datetime.datetime = _s.index[0] + pd.offsets.MonthEnd(0)
+    t_n: datetime.datetime = _s.dropna().index[-1]\
+        + pd.offsets.MonthEnd(0)
+    _p: list[float] = [0.01, 0.05, 0.10, 0.20, 0.25, 0.45]
+    fitted: pd.Series =\
+        pd.Series(data=model.predict_in_sample(),name=f"{_s.name}_MEAN")
+    prediction: pd.Series =\
+        pd.Series(data=model.predict(n_periods=_steps-1),
+                    name=f"{_s.name}_MEAN")
+    prediction = pd.concat([fitted, prediction], axis=0,
+                            ignore_index=True)
+    prediction.index =\
+        pd.date_range(start=t_0,periods=prediction.shape[0],freq="ME")
+    for p in _p:
+        _, conf_int =\
+            model.predict(n_periods=_steps, return_conf_int=True,alpha=p)
+        ci: pd.DataFrame =\
+            pd.DataFrame(data=conf_int,
+                         index=pd.date_range(start=t_n, periods=_steps,
+                            freq="ME").tolist(),
+                         columns=[f"{_s.name}_{int(100*p):>01}",
+                                  f"{_s.name}_{int(100*(1.0-p)):>01}"])
+        prediction: pd.DataFrame =\
+            pd.merge(left=prediction, right=ci, how="left",
+                     left_index=True, right_index=True, validate="1:1",
+                     sort=True)
+    prediction = pd.merge(left=prediction, right=_s, how="left",
+                          left_index=True, right_index=True,
+                          sort=True, validate="1:1")
+    return prediction
+
+for macrovar in macrovars:
+    _: pd.DataFrame = quick_arima(s=_3[macrovar])
+    plt.title(label=f"Forecasts of {macrovar}")
+    plt.xlabel(xlabel="Date")
+    plt.ylabel(ylabel=f"{macrovar}")
+    for _col in _.columns.tolist():
+        _min: float = _stats[macrovar]["min"]
+        _max: float = _stats[macrovar]["max"]
+        _mu: float = _stats[macrovar]["mean"]
+        _sd: float = _stats[macrovar]["std"]
+        _lambda: float = _stats[macrovar]["lambda"]
+        _[_col] = _[_col].apply(lambda x:\
+            _mu + _sd * x if not pd.isna(x) else math.nan)
+        _[_col] = _[_col].apply(lambda x:\
+            yjtrf.invtrf(y=x, l=_lambda)\
+                if not pd.isna(x) else math.nan)
+        _[_col] = _[_col].apply(lambda x:\
+            _min + (_max-_min) * x if not pd.isna(x) else math.nan)
+        plt.plot(_.index, _[_col], label=f"{_col}")
+    plt.savefig(f"{img_dir}/{macrovar} - Modelled.png")
+    plt.close()
+    # break
