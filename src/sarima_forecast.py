@@ -47,8 +47,20 @@ def get_scenarios(df: pd.DataFrame, macrovars: list[str],
     _stats: dict = {}
     for macrovar in macrovars:
         _stats[macrovar] = {}
-        _min: float = _1[macrovar].min(skipna=True, numeric_only=True)
-        _max: float = _1[macrovar].max(skipna=True, numeric_only=True)
+        if _1[macrovar].min(skipna=True, numeric_only=True) > 0.0:
+            _stats[macrovar]["log"] = True
+            _min: float = _1[macrovar].apply(lambda x: math.log(1.0+x)\
+                if not pd.isna(x) else math.nan)\
+                    .min(skipna=True, numeric_only=True)
+            _max: float = _1[macrovar].apply(lambda x: math.log(1.0+x)\
+                if not pd.isna(x) else math.nan)\
+                    .max(skipna=True, numeric_only=True)
+        else:
+            _stats[macrovar]["log"] = False
+            _min: float = _1[macrovar]\
+                .min(skipna=True, numeric_only=True)
+            _max: float = _1[macrovar]\
+                .max(skipna=True, numeric_only=True)
         _stats[macrovar]["min"] = _min
         _stats[macrovar]["max"] = _max
 
@@ -56,10 +68,17 @@ def get_scenarios(df: pd.DataFrame, macrovars: list[str],
     for macrovar in macrovars:
         _min: float = _stats[macrovar]["min"]
         _max: float = _stats[macrovar]["max"]
-        _2[macrovar] = _2[macrovar].apply(lambda x:\
-            0.1*(x-_min)/(_max-_min) if not pd.isna(x) else math.nan)
+        if _stats[macrovar]["log"]:
+            _2[macrovar] = _2[macrovar].apply(lambda x:\
+                0.1*(math.log(1.0+x)-_min)/(_max-_min)\
+                    if not pd.isna(x) else math.nan)
+        else:
+            _2[macrovar] = _2[macrovar].apply(lambda x:\
+                0.1*(x-_min)/(_max-_min)\
+                    if not pd.isna(x) else math.nan)
         _lambda: float = yjtrf.soek(s=_2[macrovar].dropna())
         _stats[macrovar]["lambda"] = _lambda
+
     if logger is not None:
         logger.info(f"\n_stats:\n{_stats}\n")
         logger.info(f"\n_2:\n{_2}\n")
@@ -107,8 +126,11 @@ def get_scenarios(df: pd.DataFrame, macrovars: list[str],
                 yjtrf.invtrf(y=x, l=_lambda)\
                     if not pd.isna(x) else math.nan)
             _[_col] = _[_col].apply(lambda x:\
-                _min + 10.0*(_max-_min) * x\
-                    if not pd.isna(x) else math.nan)
+                    _min + 10.0*(_max-_min) * x\
+                        if not pd.isna(x) else math.nan)
+            if _stats[macrovar]["log"]:
+                _[_col] = _[_col].apply(lambda x: math.exp(x)-1.0\
+                        if not pd.isna(x) else math.nan)
             plt.plot(_.index, _[_col], label=f"{_col}")
         plt.savefig(f"{img_dir}/{macrovar} - Modelled.png")
         plt.close()
