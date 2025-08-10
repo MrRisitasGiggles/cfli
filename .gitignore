@@ -186,4 +186,4 @@ cython_debug/
 # Random images.
 .img/*.png
 .img/*.jpg
-./src/main_20250810_08h59.py
+src/main_20250810_08h59.py
